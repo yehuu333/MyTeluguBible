@@ -1,1 +1,58 @@
 
+name: Build My Telugu Bible APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract app project
+        run: |
+          unzip -q MyTeluguBible-source.zip -d /tmp/source
+          cp -a /tmp/source/MyTeluguBible/settings.gradle .
+          cp -a /tmp/source/MyTeluguBible/build.gradle .
+          cp -a /tmp/source/MyTeluguBible/app .
+          cp -a /tmp/source/MyTeluguBible/README.md .
+
+      - name: Download Telugu Bible text
+        run: |
+          mkdir -p app/src/main/assets/bible
+          curl -L --fail --retry 3 \
+            https://codeload.github.com/aruljohn/Bible-telugu/zip/refs/heads/main \
+            -o /tmp/bible.zip
+          unzip -q /tmp/bible.zip -d /tmp/bible
+          cp /tmp/bible/Bible-telugu-main/*.json \
+            app/src/main/assets/bible/
+          cp /tmp/bible/Bible-telugu-main/LICENSE \
+            app/src/main/assets/bible/LICENSE.txt
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyTeluguBible-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          
